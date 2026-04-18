@@ -8,24 +8,32 @@ import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Map;
 
-@Path("") 
+
+@Path("/")
 public class DiscoveryResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getApiMetadata() {
-        Map<String, Object> metadata = new HashMap<>();
-        
-        metadata.put("version", "1.0.0");
-        metadata.put("contact", "mohamedqxxed@gmail.com"); 
-        metadata.put("description", "Smart Campus API");
-        
-        Map<String, String> resources = new HashMap<>();
-        resources.put("rooms", "/api/v1/rooms");
-        resources.put("sensors", "/api/v1/sensors");
-        
-        metadata.put("resources", resources);
+    public Response discover() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name",        "Sensor and Room API manager");
+        body.put("version",     "1.0");
+        body.put("contact",     "admin@smartcampus.ac.uk");
+        body.put("description", "RESTful API for managing campus rooms and IoT sensors.");
 
-        return Response.ok(metadata).build();
+        // Primary resource collection links (HATEOAS)
+        Map<String, String> resources = new HashMap<>();
+        resources.put("rooms",   "/api/v1/rooms");
+        resources.put("sensors", "/api/v1/sensors");
+        body.put("resources", resources);
+
+        // _links block follows HATEOAS convention
+        Map<String, String> links = new HashMap<>();
+        links.put("self",    "/api/v1");
+        links.put("rooms",   "/api/v1/rooms");
+        links.put("sensors", "/api/v1/sensors");
+        body.put("_links", links);
+
+        return Response.ok(body).build();
     }
 }
