@@ -18,7 +18,7 @@ public class DiscoveryResource {
         Map<String, Object> body = new HashMap<>();
         body.put("name",        "Sensor and Room API manager");
         body.put("version",     "1.0");
-        body.put("contact",     "admin@smartcampus.ac.uk");
+        body.put("contact",     "qaaed.20240279@iit.ac.lk");
         body.put("description", "RESTful API for managing campus rooms and IoT sensors.");
 
         // Primary resource collection links (HATEOAS)
