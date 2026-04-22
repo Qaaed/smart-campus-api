@@ -1,4 +1,4 @@
-package com.smartcampus.campus_api.resources;
+    package com.smartcampus.campus_api.resources;
 
 import com.smartcampus.campus_api.Storage;
 import com.smartcampus.campus_api.exceptions.RoomNotEmptyException;

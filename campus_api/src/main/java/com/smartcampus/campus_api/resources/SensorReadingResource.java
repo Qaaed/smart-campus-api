@@ -2,7 +2,7 @@ package com.smartcampus.campus_api.resources;
 
 import com.smartcampus.campus_api.Storage;
 import com.smartcampus.campus_api.exceptions.SensorUnavailableException;
-import com.smartcampus.campus_api.models.Readings;
+import com.smartcampus.campus_api.models.SensorReading;
 import com.smartcampus.campus_api.models.Sensor;
 
 import javax.ws.rs.*;
@@ -13,23 +13,23 @@ import java.util.UUID;
 
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class ReadingsResource {
+public class SensorReadingResource {
 
     private final String sensorId;
 
     //sensor resource routes traffic to this
-    public ReadingsResource(String sensorId) {
+    public SensorReadingResource(String sensorId) {
         this.sensorId = sensorId;
     }
 
     @GET
     public Response getReadings() { //gets readings for a specific sensor
-        List<Readings> readings = Storage.getReadingsForSensor(sensorId); 
+        List<SensorReading> readings = Storage.getReadingsForSensor(sensorId); 
         return Response.ok(readings).build();
     }
 
     @POST //posts the new readings received
-    public Response addReading(Readings reading) {
+    public Response addReading(SensorReading reading) {
         Sensor sensor = Storage.getSensors().get(sensorId); 
         // Prevents offline or broken sensors from recording new data.
         if ("MAINTENANCE".equalsIgnoreCase(sensor.getStatus())) {

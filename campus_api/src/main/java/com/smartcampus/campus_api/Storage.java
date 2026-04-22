@@ -1,6 +1,6 @@
 package com.smartcampus.campus_api;
 
-import com.smartcampus.campus_api.models.Readings;
+import com.smartcampus.campus_api.models.SensorReading;
 import com.smartcampus.campus_api.models.Room;
 import com.smartcampus.campus_api.models.Sensor;
 
@@ -17,7 +17,7 @@ public class Storage {
     // Using ConcurrentHashMap ensures that if multiple API requests happen at the same time, the server will not crash
     private static final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private static final Map<String, Sensor> sensors = new ConcurrentHashMap<>();
-    private static final Map<String, List<Readings>> Readings = new ConcurrentHashMap<>();
+    private static final Map<String, List<SensorReading>> SensorReading = new ConcurrentHashMap<>();
 
     //getters
     public static Map<String, Room> getRooms() {
@@ -28,11 +28,11 @@ public class Storage {
         return sensors;
     }
 
-    public static Map<String, List<Readings>> getSensorReadings() {
-        return Readings;
+    public static Map<String, List<SensorReading>> getSensorReadings() {
+        return SensorReading;
     }
 
-    public static List<Readings> getReadingsForSensor(String sensorId) {
-        return Readings.computeIfAbsent(sensorId, k -> new ArrayList<>());
+    public static List<SensorReading> getReadingsForSensor(String sensorId) {
+        return SensorReading.computeIfAbsent(sensorId, k -> new ArrayList<>());
     }
 }

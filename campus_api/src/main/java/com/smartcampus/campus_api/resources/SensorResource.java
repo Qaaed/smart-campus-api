@@ -78,11 +78,11 @@ public class SensorResource {
     }
 
     @Path("/{sensorId}/readings")
-    public ReadingsResource getReadingResource(@PathParam("sensorId") String sensorId) {
+    public SensorReadingResource getReadingResource(@PathParam("sensorId") String sensorId) {
         if (!Storage.getSensors().containsKey(sensorId)) {
             throw new NotFoundException("Sensor '" + sensorId + "' not found.");
         }
-        return new ReadingsResource(sensorId);
+        return new SensorReadingResource(sensorId);
     }
 
     private Map<String, Object> error(String msg) {

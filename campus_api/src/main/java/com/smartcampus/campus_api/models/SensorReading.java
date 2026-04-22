@@ -1,23 +1,22 @@
 package com.smartcampus.campus_api.models;
 
 //everytime a sensor takes a measurement a Readings Object is created
-public class Readings {
+public class SensorReading {
     
 
     private String id;
-    private long timestamp; // Storing time as a 'long' (millisecond) instead of a formatted String
+    private long timestamp; 
     private double value;
 
-    // JAX-RS strictly requires an empty constructor to automatically translate incoming json payloads to java objects
-    public Readings() {
+    public SensorReading() {
     }
 
-    public Readings(String id, long timestamp, double value) {
+    public SensorReading(String id, long timestamp, double value) {
         this.id = id;
         this.timestamp = timestamp;
         this.value = value;
     }   
-    //The JSON translator relies completely on these public methods to read the data and write the JSON response for Postman.
+
     //getters and setters
     public String getId() { 
         return id; 

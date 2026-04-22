@@ -8,7 +8,6 @@ public class Sensor {
     private double currentValue;
     private String roomId;
     
- // JAX-RS strictly requires an empty constructor to automatically translate incoming json payloads to java objects
     public Sensor() {
     }
 
@@ -19,7 +18,6 @@ public class Sensor {
         this.currentValue = currentValue;
         this.roomId = roomId;
     }
-    //The JSON translator relies completely on these public methods to read the data and write the JSON response for Postman.
     //getters and setters
     public String getId() { 
         return id;
