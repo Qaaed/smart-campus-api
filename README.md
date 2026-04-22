@@ -256,23 +256,31 @@ public Response getAllRooms() {
 ### 2.2 DELETE Idempotency
 
 **Question:**  
-Is the DELETE operation idempotent in your implementation? Provide a detailed justification.
+Is the DELETE operation idempotent in your implementation? Provide a detailed justification by describing what happens if a client mistakenly sends the exact same DELETE request for a room multiple times.
 
 **Answer:**  
 Yes, the DELETE operation is strictly idempotent. In REST architecture, idempotency dictates that making identical requests multiple times must leave the server's state the exact same as making a single request.
 
 ```java
-@DELETE 
-@Path("/{roomId}") 
-public Response deleteRoom(@PathParam("roomId") String roomId) {
-    Room room = Storage.getRooms().get(roomId);
-    if (room == null) {
-        return Response.status(Response.Status.NOT_FOUND).entity(...).build();
+    @DELETE 
+    @Path("/{roomId}") 
+    public Response deleteRoom(@PathParam("roomId") String roomId) {
+        Room room = Storage.getRooms().get(roomId);
+        //check if the room exists
+        if (room == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(error("Room '" + roomId + "' not found.")).build();
+        }
+        // Using RoomNotEmptyException (custom exception) to prevent deleting rooms that still hold sensors
+        if (!room.getSensorIds().isEmpty()) {
+            throw new RoomNotEmptyException(
+                "Room '" + roomId + "' still has " + room.getSensorIds().size()
+                + " sensor(s) assigned. Remove them first.");
+        }
+        //if it passes both it deletes.
+        Storage.getRooms().remove(roomId);
+        return Response.noContent().build();
     }
-    // ... validation ...
-    Storage.getRooms().remove(roomId);
-    return Response.noContent().build(); // 204 Success
-}
 ```
 
 If a client successfully deletes a room, the server removes it and returns `204 No Content`. If the exact same request is sent again, the `room == null` check triggers a `404 Not Found`. While the HTTP status code changes, the underlying state of the server remains unchanged (the room is still deleted). According to HTTP specifications, returning a `404` on subsequent deletions strictly preserves idempotency.
@@ -284,7 +292,7 @@ If a client successfully deletes a room, the server removes it and returns `204 
 ### 3.1 Content Negotiation & Data Formats
 
 **Question:**  
-We explicitly use the `@Consumes(MediaType.APPLICATION_JSON)` annotation on the POST method. Explain the technical consequences if a client attempts to send data in a different format, such as `text/plain`.
+We explicitly use the @Consumes (MediaType.APPLICATION_JSON) annotation on the POST method. Explain the technical consequences if a client attempts to send data in a different format, such as text/plain or application/xml. How does JAX-RS handle this mismatch?
 
 **Answer:**  
 The technical consequence is an immediate, fail-fast rejection of the request.
@@ -302,7 +310,7 @@ During the routing phase, JAX-RS intercepts the incoming request and compares th
 ### 3.2 Query Parameters vs. Path-Based Filtering
 
 **Question:**  
-Contrast using `@QueryParam` with an alternative design where the type is part of the URL path (e.g., `/api/v1/sensors/type/CO2`). Why is the query parameter approach superior?
+You implemented this filtering using @QueryParam. Contrast this with an alternative design where the type is part of the URL path (e.g., /api/vl/sensors/type/CO2). Why is the query parameter approach generally considered superior for filtering and searching collections?
 
 **Answer:**  
 Using query parameters (`?type=CO2`) is superior because it aligns with strict REST semantics. The URL path dictates the location of a resource, while query parameters act as optional filters. Using a path variable for filtering (e.g., `/type/CO2`) falsely implies that "type" is a permanent structural folder.
@@ -331,7 +339,7 @@ Achieving this with path variables would require writing dozens of repetitive en
 ### 4.1 Sub-Resource Locator Pattern
 
 **Question:**  
-Discuss the architectural benefits of the Sub-Resource Locator pattern. How does delegating logic to separate classes help manage complexity?
+Discuss the architectural benefits of the Sub-Resource Locator pattern. How does delegating logic to separate classes help manage complexity in large APIs compared to defining every nested path (e.g., sensors/{id}/readings/{rid}) in one massive controller class?
 
 **Answer:**  
 As an API grows, routing deeply nested paths inside a single parent controller turns the file into an unmaintainable massive Object. The Sub-Resource Locator pattern solves this by allowing the parent class to act as a router that delegates the request to a dedicated child class.
@@ -339,13 +347,13 @@ As an API grows, routing deeply nested paths inside a single parent controller t
 ```java
 // Inside SensorResource.java (Locator)
 @Path("/{sensorId}/readings")
-public ReadingsResource getReadingResource(@PathParam("sensorId") String sensorId) {
-    return new ReadingsResource(sensorId);
+public SensorReadingResource getReadingResource(@PathParam("sensorId") String sensorId) {
+    return new SensorReadingResource(sensorId);
 }
 ```
 
 ```java
-// Inside ReadingsResource.java (Child)
+// Inside SensorReadingResource.java (Child)
 private final String sensorId;
 
 public ReadingsResource(String sensorId) {
@@ -353,13 +361,13 @@ public ReadingsResource(String sensorId) {
 }
 ```
 
-Because of this, every method inside `ReadingsResource` automatically operates within that specific sensor's context without needing the ID passed as a parameter.
+Because of this, every method inside `SensorReadingResource` automatically operates within that specific sensor's context without needing the ID passed as a parameter.
 
 ---
 
 ##  PART 5: Error Handling & Logging
 
-### 5.1 Dependency Validation (422 vs 404)
+### 5.1 Dependency Validation (422 Unprocessable Entity)
 
 **Question:**  
 Why is HTTP 422 often considered more semantically accurate than a standard 404 when the issue is a missing reference inside a valid JSON payload?
@@ -379,80 +387,22 @@ By mapping this exception to a `422 Unprocessable Entity`, the API semantically 
 
 ---
 
-### 5.2 The Global Safety Net & Cybersecurity
+### 5.2 The Global Safety Net (500)
 
 **Question:**  
-From a cybersecurity standpoint, explain the risks associated with exposing internal Java stack traces to external API consumers.
+From a cybersecurity standpoint, explain the risks associated with exposing internal Java stack traces to external API consumers. What specific information could an attacker gather from such a trace?
 
 **Answer:**  
-Exposing raw Java stack traces via default 500 error pages acts as a critical information disclosure vulnerability. Attackers analyze stack traces to map the system's exact internal file directory paths and uncover the exact version numbers of underlying libraries. Attackers cross-reference these library versions against CVE databases to execute targeted exploits. Implementing a `GlobalExceptionMapper` mitigates this by swallowing the trace, logging it privately to the console, and returning a sanitized, generic JSON error to the external client.
+Exposing raw Java stack traces via default 500 error pages acts as a critical information disclosure vulnerability. Attackers analyze stack traces to map the system's exact internal file directory paths and uncover the exact version numbers of underlying libraries. Attackers cross-reference these library versions against databases to execute targeted exploits. Implementing a `GlobalExceptionMapper` mitigates this by swallowing the trace, logging it privately to the console, and returning a sanitized, generic JSON error to the external client.
 
 ---
 
-### 5.3 API Observability & Cross-Cutting Concerns
+### 5.3 API Request & Response Logging Filters
 
 **Question:**  
 Why is it advantageous to use JAX-RS filters for cross-cutting concerns like logging, rather than manually inserting `Logger.info()` statements inside every single resource method?
 
 **Answer:**  
-Logging is a cross-cutting concern—a piece of infrastructure logic that applies to the entire application. Utilizing JAX-RS `ContainerRequestFilter` and `ContainerResponseFilter` interfaces completely decouples this logic from the core business logic. If developers manually inserted `Logger.info()` into every resource method, it would heavily violate the DRY (Don't Repeat Yourself) principle and clutter the codebase. A JAX-RS filter guarantees that every single request and response is automatically and uniformly observed at the container level without relying on human memory.
+Logging is a cross-cutting concern—a piece of infrastructure logic that applies to the entire application. Utilizing JAX-RS `ContainerRequestFilter` and `ContainerResponseFilter` interfaces completely decouples this logic from the core business logic. If developers manually inserted `Logger.info()` into every resource method, it would heavily cluttered the codebase. A JAX-RS filter guarantees that every single request and response is automatically and uniformly observed at the container level without relying on human memory.
 
----
 
-## PART 5: Error Handling & Logging 
-
-### 5.4 Consistent Error Response Structure
-
-**Question:**  
-Why is it important to maintain a consistent JSON error response structure across all endpoints?
-
-**Answer:**  
-A consistent error response structure ensures that client applications can reliably parse and handle errors without needing custom logic for each endpoint.
-
-For example, a standardized error format might include:
-
-- `status` (HTTP status code)
-    
-- `message` (human-readable description)
-    
-- `timestamp` (when the error occurred)
-    
-
-This consistency provides:
-
-- ✔ Predictable client-side error handling
-    
-- ✔ Easier debugging and logging
-    
-- ✔ Cleaner frontend integration
-    
-
-Without a standard format, clients would need to write different parsing logic for different endpoints, increasing complexity and the risk of bugs.
-
----
-
-### 5.5 Logging Levels & Production Readiness
-
-**Question:**  
-Why is it important to use appropriate logging levels (INFO, WARN, ERROR) in an API, especially in production systems?
-
-**Answer:**  
-Using proper logging levels is critical for maintaining observability and performance in production environments.
-
-- **INFO** → General application flow (e.g., incoming requests)
-    
-- **WARN** → Unexpected but non-breaking issues
-    
-- **ERROR** → Failures and exceptions requiring attention
-    
-
-This structured logging allows:
-
-- ✔ Efficient debugging (filter logs by severity)
-    
-- ✔ Reduced noise in production logs
-    
-- ✔ Faster issue detection and resolution
-    
-
-If all logs were written at the same level, it would be difficult to distinguish critical failures from normal operations, making monitoring systems far less effective.
